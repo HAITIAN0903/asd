@@ -24,23 +24,35 @@ jobs:
 
           for FILE in $(find . -type f \( -name "*.json" -o -name "*.yml" \)); do
             echo "📄 Found file: $FILE"
+            
+            # Skip the workflow YAML file itself (if necessary)
+            if [[ "$FILE" == ".github/workflows/export-appian.yml" ]]; then
+              echo "⚠️ Skipping workflow file: $FILE"
+              continue
+            fi
 
-            NAME=$(jq -r '.name // empty' "$FILE")
-            DESCRIPTION=$(jq -r '.description // empty' "$FILE")
-            UUID=$(jq -r '.uuids[0] // empty' "$FILE")
+            # Check if the file is valid JSON before attempting to extract
+            if jq empty "$FILE" >/dev/null 2>&1; then
+              echo "✅ Valid JSON file found: $FILE"
 
-            if [[ -n "$NAME" && -n "$DESCRIPTION" && -n "$UUID" ]]; then
-              echo "✅ Valid deployment file found: $FILE"
-              echo "🔹 Name: $NAME"
-              echo "🔹 Description: $DESCRIPTION"
-              echo "🔹 UUID: $UUID"
+              NAME=$(jq -r '.name // empty' "$FILE")
+              DESCRIPTION=$(jq -r '.description // empty' "$FILE")
+              UUID=$(jq -r '.uuids[0] // empty' "$FILE")
 
-              echo "DEPLOY_NAME=$NAME" >> $GITHUB_ENV
-              echo "DEPLOY_DESC=$DESCRIPTION" >> $GITHUB_ENV
-              echo "DEPLOY_UUID=$UUID" >> $GITHUB_ENV
-              break
+              if [[ -n "$NAME" && -n "$DESCRIPTION" && -n "$UUID" ]]; then
+                echo "🔹 Name: $NAME"
+                echo "🔹 Description: $DESCRIPTION"
+                echo "🔹 UUID: $UUID"
+
+                echo "DEPLOY_NAME=$NAME" >> $GITHUB_ENV
+                echo "DEPLOY_DESC=$DESCRIPTION" >> $GITHUB_ENV
+                echo "DEPLOY_UUID=$UUID" >> $GITHUB_ENV
+                break
+              else
+                echo "⚠️ $FILE does not contain valid deployment details. Skipping."
+              fi
             else
-              echo "⚠️ $FILE is not a valid deployment definition. Skipping."
+              echo "⚠️ Invalid JSON in file: $FILE"
             fi
           done
 
